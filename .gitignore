@@ -1,0 +1,11 @@
+/build
+/.dart_tool
+/.idea
+/.vs
+/.gradle
+/android/app/build
+/ios/Pods
+/ios/.symlinks
+.macos
+.packages
+.pub-cache
