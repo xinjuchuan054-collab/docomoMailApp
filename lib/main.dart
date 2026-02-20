@@ -24,17 +24,14 @@ class _MyAppState extends State<MyApp> {
       title: 'メールアプリ',
       home: Scaffold(
         resizeToAvoidBottomInset: false,
-        body: Stack(
+        body: Column(
           children: [
             Container(
+              //上部の隙間色
               height: MediaQuery.of(context).padding.top,
               color: Colors.black,
             ),
-            Expanded(
-              child: Container(
-                MailAdressDisplay(),
-              ),
-            ),
+            MailAdressDisplay(),
           ],
         ),
       ),
