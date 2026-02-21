@@ -32,6 +32,8 @@ class _MyAppState extends State<MyApp> {
               color: Colors.black,
             ),
             MailAdressDisplay(),
+            GetMailsDisplay(),
+            OtherMailsDisplay(),
           ],
         ),
       ),
@@ -93,7 +95,7 @@ class MailAdressState extends State<MailAdressDisplay> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'フォルダ一覧',
+                    'メールフォルダ',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -119,6 +121,115 @@ class MailAdressState extends State<MailAdressDisplay> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class GetMailsDisplay extends StatefulWidget {
+  const GetMailsDisplay({super.key});
+  @override
+  GetMailsState createState() => GetMailsState();
+}
+
+class GetMailsState extends State<GetMailsDisplay> {
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    return Column(
+      children: [
+        Container(
+          height: screenWidth * 0.05,
+          width: screenWidth,
+          color: const Color.fromARGB(255, 222, 222, 222),
+          padding: EdgeInsets.only(left: screenWidth * 0.03),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '受信メール',
+                style: TextStyle(
+                  color: const Color.fromARGB(255, 0, 0, 0),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  height: 1.0,
+                  leadingDistribution: TextLeadingDistribution.even,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class OtherMailsDisplay extends StatefulWidget {
+  const OtherMailsDisplay({super.key});
+  @override
+  OtherMailsState createState() => OtherMailsState();
+}
+
+class OtherMailsState extends State<OtherMailsDisplay> {
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    return Column(
+      children: [
+        Container(
+          height: screenWidth * 0.05,
+          width: screenWidth,
+          color: const Color.fromARGB(255, 222, 222, 222),
+          padding: EdgeInsets.only(left: screenWidth * 0.03),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '送信メール・未送信メール・ごみ箱',
+                style: TextStyle(
+                  color: const Color.fromARGB(255, 0, 0, 0),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  height: 1.0,
+                  leadingDistribution: TextLeadingDistribution.even,
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(0)),
+                  ),
+                  child: const Text('送信BOX'),
+                  onPressed: () {},
+                ),
+              ),
+              SizedBox(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(0)),
+                  ),
+                  child: const Text('未送信BOX'),
+                  onPressed: () {},
+                ),
+              ),
+              SizedBox(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(0)),
+                  ),
+                  child: const Text('ゴミ箱'),
+                  onPressed: () {},
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
