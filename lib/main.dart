@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:enough_mail/enough_mail.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:charset_converter/charset_converter.dart';
 
 void main() async {
@@ -36,11 +37,13 @@ class _MyAppState extends State<MyApp> {
             ),
             MailAdressDisplay(),
             Expanded(
-              child: Column(
-                children: [
-                  GetMailsDisplay(onLoginUpdated: refresh),
-                  OtherMailsDisplay(),
-                ],
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    GetMailsDisplay(onLoginUpdated: refresh),
+                    OtherMailsDisplay(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -80,13 +83,14 @@ class DocomoMailReceiveService {
   final String email = 'nandemoii1145@gmail.com';
   final String password = '.tgjENVc+Y';
 
-  Future<List<Map<String, String>>> fetchMails(
+  Future<List<Map<String, dynamic>>> getMails(
       {String fetchCounts = "none"}) async {
     final client = ImapClient(isLogEnabled: true);
-    List<Map<String, String>> folderResults = [];
+    List<Map<String, dynamic>> folderResults = [];
     try {
+      debugPrint('接続試行中...');
       await client.connectToServer('imap.spmode.ne.jp', 993, isSecure: true);
-
+      debugPrint('接続成功！ログイン中...');
       await client.login(email, password);
 
       if (fetchCounts == 'getMail') {
@@ -107,7 +111,7 @@ class DocomoMailReceiveService {
 
             folderResults.add({
               'name': mailbox.name,
-              'unread': '$unreadCount',
+              'unread': unreadCount,
             });
 
             debugPrint('--- 取得完了 ---');
@@ -154,14 +158,16 @@ class DocomoMailReceiveService {
           debugPrint('送信者 : $senderName 送信アドレス : $senderEmail 件名: $subject');
           debugPrint('本文 : $body');
         }
-        return [];
       }
     } catch (e) {
       debugPrint('受信エラー: $e');
-      return [];
     } finally {
       if (client.isConnected) {
-        await client.logout();
+        try {
+          await client.logout();
+        } catch (_) {
+          // ログアウト時のエラーは無視してOK
+        }
       }
     }
     return folderResults;
@@ -235,26 +241,40 @@ class GetMailsDisplay extends StatefulWidget {
 
 class GetMailsState extends State<GetMailsDisplay> {
   final DocomoMailReceiveService _mailService = DocomoMailReceiveService();
-  List<String> _folderList = [];
+  List<Map<String, dynamic>> _folderList = [];
   bool _isLoading = true;
   @override
   void initState() {
     super.initState();
-    _fetchMails();
+    getsMails();
   }
 
   // 非同期処理を扱うためのメソッド
-  Future<List<Map<String, String>>> _fetchMails() async {
+  Future<void> getsMails() async {
+    debugPrint('--- 取得開始 ---'); // これがターミナルに出るか確認
     try {
-      List<Map> result = await _mailService.fetchMails(fetchCounts: 'getMail');
+      // タイムアウトを設定して、10秒以上かかったら強制終了させる
+      List<Map<String, dynamic>> result = await _mailService
+          .getMails(fetchCounts: 'getMail')
+          .timeout(const Duration(seconds: 15)); //サーバーとの通信時間
 
-      // 3. setStateでリストを更新し、画面を再描画する
-      setState(() {
-        _folderList = result;
-        _isLoading = false; // 読み込み完了
-      });
+      debugPrint('データ取得成功: ${result.length}件');
+      if (mounted) {
+        setState(() {
+          _folderList = result;
+        });
+      }
+    } on TimeoutException catch (_) {
+      debugPrint('タイムアウトしました：サーバーの応答がありません');
     } catch (e) {
-      debugPrint('エラーが発生しました: $e');
+      debugPrint('エラー詳細: $e');
+    } finally {
+      debugPrint('--- 処理終了（ぐるぐるを止めます） ---');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -264,24 +284,96 @@ class GetMailsState extends State<GetMailsDisplay> {
     return Column(
       children: [
         Container(
-          height: screenWidth * 0.05,
           width: screenWidth,
           color: const Color.fromARGB(255, 222, 222, 222),
-          padding: EdgeInsets.only(left: screenWidth * 0.03),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '受信メール',
-                style: TextStyle(
-                  color: const Color.fromARGB(255, 0, 0, 0),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  height: 1.0,
-                  leadingDistribution: TextLeadingDistribution.even,
+              Container(
+                height: screenWidth * 0.05,
+                padding: EdgeInsets.only(left: screenWidth * 0.03),
+                child: Text(
+                  '受信メール',
+                  style: TextStyle(
+                    color: const Color.fromARGB(255, 0, 0, 0),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    height: 1.0,
+                    leadingDistribution: TextLeadingDistribution.even,
+                  ),
                 ),
               ),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                Column(
+                  children: _folderList.map(
+                    (folder) {
+                      return Column(
+                        children: [
+                          SizedBox(
+                            height: screenWidth * 0.15, // 高さを統一
+                            width: double.infinity,
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                foregroundColor:
+                                    const Color.fromARGB(255, 0, 0, 0),
+                                backgroundColor:
+                                    const Color.fromARGB(255, 255, 255, 255),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(0),
+                                ),
+                                // 左右に少し余白を持たせる（文字が端に寄りすぎないよう調整）
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: screenWidth * 0.03),
+                              ),
+                              onPressed: () {
+                                debugPrint('${folder['name']} を選択しました');
+                              },
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // 1. フォルダ名
+                                  Text(
+                                    folder['name'] ?? '名前なし',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.normal),
+                                  ),
+                                  // 2. 未読件数（バッジ）
+                                  if (folder['unread'] > 0)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${folder['unread']}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // ボタン間の区切り線（screenWidth * 0.005 の隙間に相当）
+                          SizedBox(
+                            width: double.infinity,
+                            height: screenWidth * 0.005,
+                          ),
+                        ],
+                      );
+                    },
+                  ).toList(),
+                ),
             ],
           ),
         ),
@@ -346,10 +438,7 @@ class OtherMailsState extends State<OtherMailsDisplay> {
                         '送信済みメール',
                         style: TextStyle(),
                       ),
-                      onPressed: () async {
-                        // メソッドを実行
-                        await _receiveService.fetchMails();
-                      },
+                      onPressed: () async {},
                     ),
                   ),
                 ],
