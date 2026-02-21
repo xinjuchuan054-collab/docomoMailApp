@@ -177,54 +177,96 @@ class OtherMailsState extends State<OtherMailsDisplay> {
     return Column(
       children: [
         Container(
-          height: screenWidth * 0.05,
           width: screenWidth,
           color: const Color.fromARGB(255, 222, 222, 222),
-          padding: EdgeInsets.only(left: screenWidth * 0.03),
+          //padding: EdgeInsets.only(left: screenWidth * 0.03),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '送信メール・未送信メール・ごみ箱',
-                style: TextStyle(
-                  color: const Color.fromARGB(255, 0, 0, 0),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                  height: 1.0,
-                  leadingDistribution: TextLeadingDistribution.even,
+              Padding(
+                padding: EdgeInsets.only(left: screenWidth * 0.03),
+                child: Text(
+                  '送信メール・未送信メール・ごみ箱',
+                  style: TextStyle(
+                    color: const Color.fromARGB(255, 0, 0, 0),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    height: 1.0,
+                    leadingDistribution: TextLeadingDistribution.even,
+                  ),
                 ),
               ),
-              SizedBox(
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: Color.fromARGB(255, 0, 0, 0),
+                        backgroundColor: Color.fromARGB(255, 255, 255, 255),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0)),
+                      ),
+                      child: const Text(
+                        '送信BOX',
+                        style: TextStyle(),
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
+              ),
+              Container(
                 width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(0)),
-                  ),
-                  child: const Text('送信BOX'),
-                  onPressed: () {},
-                ),
+                height: screenWidth * 0.004,
+                color: Color.fromARGB(255, 222, 222, 222),
               ),
-              SizedBox(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(0)),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: Color.fromARGB(255, 0, 0, 0),
+                        backgroundColor: Color.fromARGB(255, 255, 255, 255),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0)),
+                      ),
+                      child: const Text('未送信BOX'),
+                      onPressed: () {},
+                    ),
                   ),
-                  child: const Text('未送信BOX'),
-                  onPressed: () {},
-                ),
+                ],
               ),
-              SizedBox(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(0)),
+              Container(
+                width: double.infinity,
+                height: 0.01,
+                color: Color.fromARGB(255, 222, 222, 222),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: Color.fromARGB(255, 0, 0, 0),
+                        backgroundColor: Color.fromARGB(255, 255, 255, 255),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0)),
+                      ),
+                      child: const Text('ゴミ箱'),
+                      onPressed: () {},
+                    ),
                   ),
-                  child: const Text('ゴミ箱'),
-                  onPressed: () {},
-                ),
+                ],
               ),
             ],
           ),
