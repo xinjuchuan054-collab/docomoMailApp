@@ -38,7 +38,7 @@ class _MyAppState extends State<MyApp> {
             Expanded(
               child: Column(
                 children: [
-                  GetMailsDisplay(),
+                  GetMailsDisplay(onLoginUpdated: refresh),
                   OtherMailsDisplay(),
                 ],
               ),
@@ -80,82 +80,91 @@ class DocomoMailReceiveService {
   final String email = 'nandemoii1145@gmail.com';
   final String password = '.tgjENVc+Y';
 
-  Future<void> fetchMails() async {
+  Future<List<Map<String, String>>> fetchMails(
+      {String fetchCounts = "none"}) async {
     final client = ImapClient(isLogEnabled: true);
+    List<Map<String, String>> folderResults = [];
     try {
       await client.connectToServer('imap.spmode.ne.jp', 993, isSecure: true);
 
       await client.login(email, password);
 
-      final mailboxes = await client.listMailboxes();
+      if (fetchCounts == 'getMail') {
+        final mailboxes = await client.listMailboxes();
 
-      debugPrint('--- フォルダ一覧 ---');
-      debugPrint('フォルダ数: ${mailboxes.length}');
+        debugPrint('--- フォルダ一覧 ---');
+        debugPrint('フォルダ数: ${mailboxes.length}');
 
-      for (final mailbox in mailboxes) {
-        try {
-          // mailboxStatus ではなく statusMailbox を使い、
-          // 欲しい情報（未読数）を文字列のリストで直接指定します。
-          // 第2引数の ['UNSEEN'] は IMAP の標準仕様のキーワードです。
-          final dynamic status =
-              await client.statusMailbox(mailbox, [StatusFlags.unseen]);
-          final folderName = mailbox.name;
-
-          // status オブジェクトの中にある unseen プロパティを確認します
-          // もし unseen でエラーが出る場合は messagesCount を試してください
-          final unreadCount = status.unseen ?? 0;
-
-          debugPrint('フォルダ名: $folderName | 未読: $unreadCount 件');
-        } catch (e) {
-          // 選択できないフォルダや、ステータスが取れないフォルダはスキップ
-          continue;
-        }
-      }
-
-      for (final mailbox in mailboxes) {
-        debugPrint('フォルダ名: ${mailbox.name}');
-      }
-
-      await client.selectInbox();
-
-      final fetchResult = await client.fetchRecentMessages(messageCount: 50);
-
-      for (final message in fetchResult.messages) {
-        String? subject = message.decodeSubject();
-        final fromAddress = message.from?.first;
-        final senderName = fromAddress?.personalName ?? '名前なし';
-        final senderEmail = fromAddress?.email ?? 'アドレス不明';
-
-        String? body = message.decodeTextPlainPart();
-        if (body == null || body.isEmpty) {
-          body = message.decodeTextHtmlPart();
-        }
-
-        //shift-JIS規格からデコードする
-        if (subject != null && subject.contains('=?shift_jis?B?')) {
+        for (final mailbox in mailboxes) {
           try {
-            final regExp =
-                RegExp(r'=\?shift_jis\?B\?(.+)\?=', caseSensitive: false);
-            final match = regExp.firstMatch(subject);
+            await client.selectMailbox(mailbox);
 
-            if (match != null) {
-              final base64String = match.group(1)!;
+            // 2. 検索機能を使って「未読(UNSEEN)」メールのIDリストを取得する
+            // サーバーに直接「未読のリストをちょうだい」と聞くので、解析ミスが起きません
+            final searchResult =
+                await client.searchMessages(searchCriteria: 'UNSEEN');
+            final unreadCount = searchResult.matchingSequence?.length ?? 0;
 
-              final bytes = base64.decode(base64String);
-              subject = await CharsetConverter.decode("Shift_JIS", bytes);
-            }
+            folderResults.add({
+              'name': mailbox.name,
+              'unread': '$unreadCount',
+            });
+
+            debugPrint('--- 取得完了 ---');
+            debugPrint('フォルダ名: ${mailbox.name}');
+            debugPrint('未読件数: $unreadCount');
           } catch (e) {
-            debugPrint('CharsetConverterエラー: $e');
+            continue;
           }
         }
+      } else {
+        await client.selectInbox();
 
-        debugPrint('送信者 : $senderName 送信アドレス : $senderEmail 件名: $subject');
-        debugPrint('本文 : $body');
+        final fetchResult = await client.fetchRecentMessages(messageCount: 50);
+
+        for (final message in fetchResult.messages) {
+          String? subject = message.decodeSubject();
+          final fromAddress = message.from?.first;
+          final senderName = fromAddress?.personalName ?? '名前なし';
+          final senderEmail = fromAddress?.email ?? 'アドレス不明';
+
+          String? body = message.decodeTextPlainPart();
+          if (body == null || body.isEmpty) {
+            body = message.decodeTextHtmlPart();
+          }
+
+          //shift-JIS規格からデコードする
+          if (subject != null && subject.contains('=?shift_jis?B?')) {
+            try {
+              final regExp =
+                  RegExp(r'=\?shift_jis\?B\?(.+)\?=', caseSensitive: false);
+              final match = regExp.firstMatch(subject);
+
+              if (match != null) {
+                final base64String = match.group(1)!;
+
+                final bytes = base64.decode(base64String);
+                subject = await CharsetConverter.decode("Shift_JIS", bytes);
+              }
+            } catch (e) {
+              debugPrint('CharsetConverterエラー: $e');
+            }
+          }
+
+          debugPrint('送信者 : $senderName 送信アドレス : $senderEmail 件名: $subject');
+          debugPrint('本文 : $body');
+        }
+        return [];
       }
-      await client.logout();
     } catch (e) {
       debugPrint('受信エラー: $e');
+      return [];
+    } finally {
+      if (client.isConnected) {
+        await client.logout();
+      }
     }
+    return folderResults;
   }
 }
 
@@ -218,12 +227,37 @@ class MailAdressState extends State<MailAdressDisplay> {
 }
 
 class GetMailsDisplay extends StatefulWidget {
-  const GetMailsDisplay({super.key});
+  final VoidCallback onLoginUpdated;
+  const GetMailsDisplay({super.key, required this.onLoginUpdated});
   @override
   GetMailsState createState() => GetMailsState();
 }
 
 class GetMailsState extends State<GetMailsDisplay> {
+  final DocomoMailReceiveService _mailService = DocomoMailReceiveService();
+  List<String> _folderList = [];
+  bool _isLoading = true;
+  @override
+  void initState() {
+    super.initState();
+    _fetchMails();
+  }
+
+  // 非同期処理を扱うためのメソッド
+  Future<List<Map<String, String>>> _fetchMails() async {
+    try {
+      List<Map> result = await _mailService.fetchMails(fetchCounts: 'getMail');
+
+      // 3. setStateでリストを更新し、画面を再描画する
+      setState(() {
+        _folderList = result;
+        _isLoading = false; // 読み込み完了
+      });
+    } catch (e) {
+      debugPrint('エラーが発生しました: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
