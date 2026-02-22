@@ -41,7 +41,6 @@ class _MyAppState extends State<MyApp> {
                 child: Column(
                   children: [
                     GetMailsDisplay(onLoginUpdated: refresh),
-                    OtherMailsDisplay(),
                   ],
                 ),
               ),
@@ -109,8 +108,19 @@ class DocomoMailReceiveService {
                 await client.searchMessages(searchCriteria: 'UNSEEN');
             final unreadCount = searchResult.matchingSequence?.length ?? 0;
 
+            String mailBoxName = mailbox.name;
+            if (mailBoxName == 'INBOX') {
+              mailBoxName = '受信メール';
+            } else if (mailBoxName == 'Sent') {
+              mailBoxName = '送信済みメール';
+            } else if (mailBoxName == 'Drafts') {
+              mailBoxName = '未送信メール';
+            } else if (mailBoxName == 'Trash') {
+              mailBoxName = 'ゴミ箱';
+            }
+
             folderResults.add({
-              'name': mailbox.name,
+              'name': mailBoxName,
               'unread': unreadCount,
             });
 
@@ -269,7 +279,6 @@ class GetMailsState extends State<GetMailsDisplay> {
     } catch (e) {
       debugPrint('エラー詳細: $e');
     } finally {
-      debugPrint('--- 処理終了（ぐるぐるを止めます） ---');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -277,6 +286,8 @@ class GetMailsState extends State<GetMailsDisplay> {
       }
     }
   }
+
+  Map<String, bool> _checkStates = {};
 
   @override
   Widget build(BuildContext context) {
@@ -291,27 +302,62 @@ class GetMailsState extends State<GetMailsDisplay> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: screenWidth * 0.05,
+                height: screenWidth * 0.1,
                 padding: EdgeInsets.only(left: screenWidth * 0.03),
-                child: Text(
-                  '受信メール',
-                  style: TextStyle(
-                    color: const Color.fromARGB(255, 0, 0, 0),
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                    height: 1.0,
-                    leadingDistribution: TextLeadingDistribution.even,
-                  ),
+                child: Row(
+                  children: [
+                    Text(
+                      '受信メール',
+                      style: TextStyle(
+                        color: const Color.fromARGB(255, 0, 0, 0),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 17,
+                        height: 1.0,
+                        leadingDistribution: TextLeadingDistribution.even,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else
                 Column(
-                  children: _folderList.map(
-                    (folder) {
+                  children: _folderList.asMap().entries.map(
+                    (entry) {
+                      int index = entry.key; // 何番目かの番号
+                      Map folder = entry.value;
+                      final String folderName = folder['name'] ?? '名前なし';
+                      // 「送信済みメール」かどうかを判定
+                      final bool isSentFolder = folderName == '送信済みメール';
                       return Column(
                         children: [
+                          if (isSentFolder)
+                            Container(
+                              height: screenWidth * 0.1,
+                              padding:
+                                  EdgeInsets.only(left: screenWidth * 0.03),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '送信済・未送信メール・ゴミ箱',
+                                    style: TextStyle(
+                                      color: const Color.fromARGB(255, 0, 0, 0),
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 17,
+                                      height: 1.0,
+                                      leadingDistribution:
+                                          TextLeadingDistribution.even,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (isSentFolder)
+                            SizedBox(
+                              width: double.infinity,
+                              height: screenWidth * 0.005,
+                            ),
                           SizedBox(
                             height: screenWidth * 0.15, // 高さを統一
                             width: double.infinity,
@@ -336,11 +382,28 @@ class GetMailsState extends State<GetMailsDisplay> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  // 1. フォルダ名
-                                  Text(
-                                    folder['name'] ?? '名前なし',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.normal),
+                                  Row(
+                                    children: [
+                                      Checkbox(
+                                        value: folder['checked'] ?? false,
+                                        onChanged: (bool? value) {
+                                          setState(() {
+                                            // インデックスを使ってリストの中身を更新
+                                            _folderList[index]['checked'] =
+                                                value ?? false;
+                                          });
+                                          debugPrint(
+                                              '$index 番目のフォルダ: $folderName を ${value! ? "選択" : "解除"}');
+                                        },
+                                      ),
+                                      Text(
+                                        folder['name'] ?? '名前なし',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   // 2. 未読件数（バッジ）
                                   if (folder['unread'] > 0)
@@ -355,8 +418,8 @@ class GetMailsState extends State<GetMailsDisplay> {
                                         '${folder['unread']}',
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                     ),
@@ -374,125 +437,6 @@ class GetMailsState extends State<GetMailsDisplay> {
                     },
                   ).toList(),
                 ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class OtherMailsDisplay extends StatefulWidget {
-  const OtherMailsDisplay({super.key});
-  @override
-  OtherMailsState createState() => OtherMailsState();
-}
-
-class OtherMailsState extends State<OtherMailsDisplay> {
-  final DocomoMailReceiveService _receiveService = DocomoMailReceiveService();
-  @override
-  Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    return Column(
-      children: [
-        Container(
-          height: screenWidth * 0.51,
-          width: screenWidth,
-          color: const Color.fromARGB(255, 222, 222, 222),
-          //padding: EdgeInsets.only(left: screenWidth * 0.03),
-          child: Column(
-            children: [
-              Container(
-                alignment: Alignment.centerLeft,
-                height: screenWidth * 0.05,
-                child: Padding(
-                  padding: EdgeInsets.only(left: screenWidth * 0.03),
-                  child: Text(
-                    '送信メール・未送信メール・ごみ箱',
-                    style: TextStyle(
-                      color: const Color.fromARGB(255, 0, 0, 0),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                      height: 1.0,
-                      leadingDistribution: TextLeadingDistribution.even,
-                    ),
-                  ),
-                ),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: screenWidth * 0.15,
-                    width: double.infinity,
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        foregroundColor: Color.fromARGB(255, 0, 0, 0),
-                        backgroundColor: Color.fromARGB(255, 255, 255, 255),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0)),
-                      ),
-                      child: const Text(
-                        '送信済みメール',
-                        style: TextStyle(),
-                      ),
-                      onPressed: () async {},
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(
-                width: double.infinity,
-                height: screenWidth * 0.005,
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: screenWidth * 0.15,
-                    width: double.infinity,
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        foregroundColor: Color.fromARGB(255, 0, 0, 0),
-                        backgroundColor: Color.fromARGB(255, 255, 255, 255),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0)),
-                      ),
-                      child: const Text('未送信メール'),
-                      onPressed: () {},
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(
-                width: double.infinity,
-                height: screenWidth * 0.005,
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: screenWidth * 0.15,
-                    width: double.infinity,
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        foregroundColor: Color.fromARGB(255, 0, 0, 0),
-                        backgroundColor: Color.fromARGB(255, 255, 255, 255),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0)),
-                      ),
-                      child: const Text('ゴミ箱'),
-                      onPressed: () {},
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
