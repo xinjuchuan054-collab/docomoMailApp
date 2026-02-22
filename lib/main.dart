@@ -5,7 +5,10 @@ import 'dart:async';
 import 'package:charset_converter/charset_converter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:red_mail/mailTree.dart';
+
 String _email = '';
+List<Map<String, dynamic>> folderResults = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +33,15 @@ class _MyAppState extends State<MyApp> {
 
   // 保存されているログイン情報を確認
   Future<void> _checkLoginStatus() async {
+    final prefss = await SharedPreferences.getInstance();
+    await prefss.setStringList('loginStateNow', [
+      'nandemoii1145@gmail.com',
+      '.tgjENVc+Y',
+      'nbbr9xb5kw2znbtfqxag@docomo.ne.jp',
+    ]);
+
+    _email = 'nbbr9xb5kw2znbtfqxag@docomo.ne.jp';
+
     final prefs = await SharedPreferences.getInstance();
     final List<String>? loginStateNow = prefs.getStringList('loginStateNow');
     setState(() {
@@ -79,7 +91,8 @@ class _MyAppState extends State<MyApp> {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          GetMailsDisplay(onLoginUpdated: refresh),
+                          GetMailsDisplay(
+                              onLoginUpdated: refresh, body: folderResults),
                         ],
                       ),
                     ),
@@ -129,95 +142,94 @@ class DocomoMailReceiveService {
       debugPrint('エラー: ログイン情報が SharedPreferences に見つかりません');
       return []; // または throw Exception
     }
+
     // クラス変数に代入（またはローカル変数として利用
     final iMAPid = loginStateNow[0];
     final password = loginStateNow[1];
     _email = loginStateNow[2];
 
     final client = ImapClient(isLogEnabled: true);
-    List<Map<String, dynamic>> folderResults = [];
     try {
       debugPrint('接続試行中...');
       await client.connectToServer('imap.spmode.ne.jp', 993, isSecure: true);
       debugPrint('接続成功！ログイン中...');
       await client.login(iMAPid, password);
 
-      if (fetchCounts == 'getMail') {
-        final mailboxes = await client.listMailboxes();
+      final mailboxes = await client.listMailboxes();
 
-        debugPrint('--- フォルダ一覧 ---');
-        debugPrint('フォルダ数: ${mailboxes.length}');
+      debugPrint('--- フォルダ一覧 ---');
+      debugPrint('フォルダ数: ${mailboxes.length}');
 
-        for (final mailbox in mailboxes) {
-          try {
-            await client.selectMailbox(mailbox);
-            final searchResult =
-                await client.searchMessages(searchCriteria: 'UNSEEN');
-            final unreadCount = searchResult.matchingSequence?.length ?? 0;
-
-            String mailBoxName = mailbox.name;
-            if (mailBoxName == 'INBOX') {
-              mailBoxName = '受信メール';
-            } else if (mailBoxName == 'Sent') {
-              mailBoxName = '送信済みメール';
-            } else if (mailBoxName == 'Drafts') {
-              mailBoxName = '未送信メール';
-            } else if (mailBoxName == 'Trash') {
-              mailBoxName = 'ゴミ箱';
-            }
-
-            folderResults.add({
-              'name': mailBoxName,
-              'unread': unreadCount,
-            });
-
-            debugPrint('--- 取得完了 ---');
-            debugPrint('フォルダ名: ${mailbox.name}');
-            debugPrint('未読件数: $unreadCount');
-          } catch (e) {
-            continue;
-          }
+      for (final mailbox in mailboxes) {
+        String mailBoxName = mailbox.name;
+        if (mailBoxName == 'INBOX') {
+          mailBoxName = '受信メール';
+        } else if (mailBoxName == 'Sent') {
+          mailBoxName = '送信済みメール';
+        } else if (mailBoxName == 'Drafts') {
+          mailBoxName = '未送信メール';
+        } else if (mailBoxName == 'Trash') {
+          mailBoxName = 'ゴミ箱';
         }
-      } else if (fetchCounts == 'loginCheck') {
-        folderResults.add({
-          'login': 'ok',
-        });
-      } else {
-        await client.selectInbox();
 
-        final fetchResult = await client.fetchRecentMessages(messageCount: 50);
+        try {
+          await client.selectMailbox(mailbox);
 
-        for (final message in fetchResult.messages) {
-          String? subject = message.decodeSubject();
-          final fromAddress = message.from?.first;
-          final senderName = fromAddress?.personalName ?? '名前なし';
-          final senderEmail = fromAddress?.email ?? 'アドレス不明';
+          // 1. 未読件数の取得
+          final searchResult =
+              await client.searchMessages(searchCriteria: 'UNSEEN');
+          final unreadCount = searchResult.matchingSequence?.length ?? 0;
 
-          String? body = message.decodeTextPlainPart();
-          if (body == null || body.isEmpty) {
-            body = message.decodeTextHtmlPart();
-          }
+          List<Map<String, String>> emailsInFolder = [];
 
-          //shift-JIS規格からデコードする
-          if (subject != null && subject.contains('=?shift_jis?B?')) {
-            try {
-              final regExp =
-                  RegExp(r'=\?shift_jis\?B\?(.+)\?=', caseSensitive: false);
-              final match = regExp.firstMatch(subject);
+          final fetchResult =
+              await client.fetchRecentMessages(messageCount: 50);
 
-              if (match != null) {
-                final base64String = match.group(1)!;
+          for (final message in fetchResult.messages) {
+            String subject = message.decodeSubject() ?? '件名なし';
+            final fromAddress = message.from?.first;
+            final senderName = fromAddress?.personalName ?? '名前なし';
+            final senderEmail = fromAddress?.email ?? 'アドレス不明';
 
-                final bytes = base64.decode(base64String);
-                subject = await CharsetConverter.decode("Shift_JIS", bytes);
+            String? body = message.decodeTextPlainPart() ??
+                message.decodeTextHtmlPart() ??
+                '本文なし';
+
+            if (subject.contains('=?shift_jis?B?')) {
+              try {
+                final regExp =
+                    RegExp(r'=\?shift_jis\?B\?(.+)\?=', caseSensitive: false);
+                final match = regExp.firstMatch(subject);
+                if (match != null) {
+                  final bytes = base64.decode(match.group(1)!);
+                  subject = await CharsetConverter.decode("cp932", bytes);
+                }
+              } catch (e) {
+                debugPrint('デコードエラー: $e');
               }
-            } catch (e) {
-              debugPrint('CharsetConverterエラー: $e');
             }
+
+            emailsInFolder.add({
+              'subject': subject,
+              'senderName': senderName,
+              'senderEmail': senderEmail,
+              'body': body,
+            });
           }
 
-          debugPrint('送信者 : $senderName 送信アドレス : $senderEmail 件名: $subject');
-          debugPrint('本文 : $body');
+          folderResults.add({
+            'name': mailBoxName,
+            'unread': unreadCount,
+            'messages': emailsInFolder,
+          });
+
+          debugPrint('$mailBoxName の取得完了 (${emailsInFolder.length}件)');
+        } catch (e) {
+          debugPrint('$mailBoxName は空きフォルダ: $e');
+          folderResults.add({
+            'name': mailBoxName,
+            'unread': 0,
+          });
         }
       }
     } catch (e) {
@@ -257,7 +269,7 @@ class LoginState extends State<LoginDisplay> {
 
   void loginConditionCheck() async {
     final prefs = await SharedPreferences.getInstance();
-    String? loginStateNow = prefs.getString('loginStateNow');
+    final List<String>? loginStateNow = prefs.getStringList('loginStateNow');
 
     debugPrint('現在のloginStateNow: $loginStateNow');
     setState(() {
@@ -449,7 +461,9 @@ class MailAdressState extends State<MailAdressDisplay> {
 
 class GetMailsDisplay extends StatefulWidget {
   final VoidCallback onLoginUpdated;
-  const GetMailsDisplay({super.key, required this.onLoginUpdated});
+  final List<Map<String, dynamic>> body;
+  const GetMailsDisplay(
+      {super.key, required this.onLoginUpdated, required this.body});
   @override
   GetMailsState createState() => GetMailsState();
 }
@@ -494,6 +508,7 @@ class GetMailsState extends State<GetMailsDisplay> {
 
   @override
   Widget build(BuildContext context) {
+    final displayList = _folderList.isNotEmpty ? _folderList : widget.body;
     double screenWidth = MediaQuery.of(context).size.width;
     return Column(
       children: [
@@ -529,9 +544,12 @@ class GetMailsState extends State<GetMailsDisplay> {
                   children: _folderList.asMap().entries.map(
                     (entry) {
                       int index = entry.key; // 何番目かの番号
-                      Map folder = entry.value;
+                      Map<String, dynamic> folder = entry.value;
                       final String folderName = folder['name'] ?? '名前なし';
                       // 「送信済みメール」かどうかを判定
+                      final List<Map<String, String>> folderMessages =
+                          List<Map<String, String>>.from(
+                              folder['messages'] ?? []);
                       final bool isSentFolder = folderName == '送信済みメール';
                       return Column(
                         children: [
@@ -580,6 +598,15 @@ class GetMailsState extends State<GetMailsDisplay> {
                               ),
                               onPressed: () {
                                 debugPrint('${folder['name']} を選択しました');
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MailCheckPage(
+                                      folderName: folderName,
+                                      mailTexts: folderMessages,
+                                    ),
+                                  ),
+                                );
                               },
                               child: Row(
                                 mainAxisAlignment:
