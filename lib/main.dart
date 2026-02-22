@@ -3,6 +3,9 @@ import 'package:enough_mail/enough_mail.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:charset_converter/charset_converter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+String _email = '';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +20,40 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  void refresh() {
-    setState(() {}); // 画面全体を再描画する
+  bool _isLoggedIn = false; // ログイン状態を管理する変数
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus(); // 起動時にチェック
+  }
+
+  // 保存されているログイン情報を確認
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? loginStateNow = prefs.getStringList('loginStateNow');
+    setState(() {
+      if (loginStateNow != null && loginStateNow.isNotEmpty) {
+        _isLoggedIn = true;
+        // ここで代入することで、親から子へ新しいメルアドが渡される
+        _email = loginStateNow[2];
+      } else {
+        _isLoggedIn = false;
+        _email = '';
+      }
+    });
+  }
+
+  void refresh() async {
+    // 保存されたデータを再確認してフラグを更新
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? loginStateNow = prefs.getStringList('loginStateNow');
+
+    setState(() {
+      _isLoggedIn = loginStateNow != null && loginStateNow.isNotEmpty;
+    });
+
+    debugPrint('再描画実行: ログイン状態 = $_isLoggedIn');
   }
 
   @override
@@ -28,22 +63,28 @@ class _MyAppState extends State<MyApp> {
       home: Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: const Color.fromARGB(255, 222, 222, 222),
-        body: Column(
+        body: Stack(
           children: [
-            Container(
-              //上部の隙間色
-              height: MediaQuery.of(context).padding.top,
-              color: Colors.black,
-            ),
-            MailAdressDisplay(),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    GetMailsDisplay(onLoginUpdated: refresh),
-                  ],
+            if (_isLoggedIn == false) LoginDisplay(onLoginUpdated: refresh),
+            Column(
+              children: [
+                Container(
+                  //上部の隙間色
+                  height: MediaQuery.of(context).padding.top,
+                  color: Colors.black,
                 ),
-              ),
+                MailAdressDisplay(email: _email),
+                if (_isLoggedIn)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          GetMailsDisplay(onLoginUpdated: refresh),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -79,18 +120,27 @@ class DocomoMailService {
 }
 
 class DocomoMailReceiveService {
-  final String email = 'nandemoii1145@gmail.com';
-  final String password = '.tgjENVc+Y';
-
   Future<List<Map<String, dynamic>>> getMails(
       {String fetchCounts = "none"}) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String>? loginStateNow = prefs.getStringList('loginStateNow');
+
+    if (loginStateNow == null || loginStateNow.length < 2) {
+      debugPrint('エラー: ログイン情報が SharedPreferences に見つかりません');
+      return []; // または throw Exception
+    }
+    // クラス変数に代入（またはローカル変数として利用
+    final iMAPid = loginStateNow[0];
+    final password = loginStateNow[1];
+    _email = loginStateNow[2];
+
     final client = ImapClient(isLogEnabled: true);
     List<Map<String, dynamic>> folderResults = [];
     try {
       debugPrint('接続試行中...');
       await client.connectToServer('imap.spmode.ne.jp', 993, isSecure: true);
       debugPrint('接続成功！ログイン中...');
-      await client.login(email, password);
+      await client.login(iMAPid, password);
 
       if (fetchCounts == 'getMail') {
         final mailboxes = await client.listMailboxes();
@@ -101,9 +151,6 @@ class DocomoMailReceiveService {
         for (final mailbox in mailboxes) {
           try {
             await client.selectMailbox(mailbox);
-
-            // 2. 検索機能を使って「未読(UNSEEN)」メールのIDリストを取得する
-            // サーバーに直接「未読のリストをちょうだい」と聞くので、解析ミスが起きません
             final searchResult =
                 await client.searchMessages(searchCriteria: 'UNSEEN');
             final unreadCount = searchResult.matchingSequence?.length ?? 0;
@@ -131,6 +178,10 @@ class DocomoMailReceiveService {
             continue;
           }
         }
+      } else if (fetchCounts == 'loginCheck') {
+        folderResults.add({
+          'login': 'ok',
+        });
       } else {
         await client.selectInbox();
 
@@ -184,8 +235,165 @@ class DocomoMailReceiveService {
   }
 }
 
+bool loginCheck = false;
+bool loginVisible = true;
+final TextEditingController _idController = TextEditingController();
+final TextEditingController _passController = TextEditingController();
+final TextEditingController _mailController = TextEditingController();
+
+class LoginDisplay extends StatefulWidget {
+  final VoidCallback onLoginUpdated;
+  const LoginDisplay({super.key, required this.onLoginUpdated});
+  @override
+  LoginState createState() => LoginState();
+}
+
+class LoginState extends State<LoginDisplay> {
+  @override
+  void initState() {
+    super.initState();
+    loginConditionCheck();
+  }
+
+  void loginConditionCheck() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? loginStateNow = prefs.getString('loginStateNow');
+
+    debugPrint('現在のloginStateNow: $loginStateNow');
+    setState(() {
+      if (loginStateNow != null && loginStateNow.isNotEmpty) {
+        loginCheck = false;
+        loginVisible = false;
+      } else {
+        //ローカルデータない場合
+        loginCheck = true;
+        loginVisible = true;
+      }
+    });
+    widget.onLoginUpdated();
+
+    debugPrint('現在のloginCheck: $loginCheck');
+  }
+
+  Future<void> loginConditionSave() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? loginState = prefs.getString('loginStateNow');
+
+    if (loginState != null && loginState.isNotEmpty) {
+      debugPrint('【確認】ログイン中: ユーザーID = $loginState');
+    } else {
+      debugPrint('【確認】未ログイン状態です');
+    }
+  }
+
+  Future<void> loginRequest() async {
+    if (_idController.text.isEmpty || _passController.text.isEmpty) {
+      debugPrint('IDとパスワードを入力してください');
+      return;
+    }
+
+    final DocomoMailReceiveService _mailService = DocomoMailReceiveService();
+    try {
+      List<Map<String, dynamic>> result = await _mailService
+          .getMails(fetchCounts: 'loginCheck')
+          .timeout(const Duration(seconds: 15));
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('loginStateNow',
+          [_idController.text, _passController.text, _mailController.text]);
+
+      debugPrint('ログイン成功・保存完了');
+
+      setState(() {
+        loginCheck = false;
+        loginVisible = false;
+      });
+
+      widget.onLoginUpdated();
+    } on TimeoutException catch (_) {
+      debugPrint('タイムアウトしました');
+    } catch (e) {
+      debugPrint('ログイン失敗: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // ログインフォームの追加
+        if (loginVisible) ...[
+          Positioned.fill(
+            child: ModalBarrier(
+              color: Colors.black54,
+              dismissible: false,
+            ),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                  left: 32,
+                  right: 32,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white, // 背景が透けないように白に設定
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _mailController,
+                        decoration: const InputDecoration(
+                            labelText: 'メールアドレス(~@docomo.ne.jpなど)',
+                            border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _idController,
+                        decoration: const InputDecoration(
+                            labelText: 'IMAPユーザーID',
+                            border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _passController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                            labelText: 'IMAP専用パスワード',
+                            border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: loginRequest,
+                        child: const Text('ログイン実行'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class MailAdressDisplay extends StatefulWidget {
-  const MailAdressDisplay({super.key});
+  const MailAdressDisplay({super.key, required this.email});
+  final String email;
   @override
   MailAdressState createState() => MailAdressState();
 }
@@ -199,10 +407,7 @@ class MailAdressState extends State<MailAdressDisplay> {
       width: screenWidth,
       child: Stack(
         children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
+          Positioned.fill(
             child: Container(
               color: const Color.fromARGB(255, 18, 150, 251),
               padding: EdgeInsets.only(left: screenWidth * 0.03),
@@ -223,7 +428,7 @@ class MailAdressState extends State<MailAdressDisplay> {
                   ),
                   SizedBox(height: screenWidth * 0.019),
                   Text(
-                    'hdcyedsvhcnwduvibwenkvuh@docomo.ne.jp',
+                    widget.email.isEmpty ? '読み込み中...' : widget.email,
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -286,8 +491,6 @@ class GetMailsState extends State<GetMailsDisplay> {
       }
     }
   }
-
-  Map<String, bool> _checkStates = {};
 
   @override
   Widget build(BuildContext context) {
