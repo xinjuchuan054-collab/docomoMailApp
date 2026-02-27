@@ -604,6 +604,7 @@ class GetMailsState extends State<GetMailsDisplay> {
                                     builder: (context) => MailCheckPage(
                                       folderName: folderName,
                                       mailTexts: folderMessages,
+                                      mailadress: _email,
                                     ),
                                   ),
                                 );
