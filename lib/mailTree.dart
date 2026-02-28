@@ -122,7 +122,8 @@ class AllMailDetailState extends State<AllMailDetail> {
       children: widget.body.asMap().entries.map((entry) {
         int mailNum = entry.key;
         Map<String, dynamic> mailFolder = entry.value;
-        final String mailFolderName = mailFolder['name'] ?? '名前なし';
+        debugPrint('mailFolder ${mailFolder}');
+        final String mailFolderName = mailFolder['senderName'] ?? '名前不明';
 
         return Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -145,7 +146,7 @@ class AllMailDetailState extends State<AllMailDetail> {
                         EdgeInsets.symmetric(horizontal: screenWidth * 0.03),
                   ),
                   onPressed: () {
-                    debugPrint('${mailFolder['name']} を選択しました');
+                    debugPrint('${mailFolder['senderName']} を選択しました');
                   },
                   child: Row(
                     children: [
@@ -160,12 +161,49 @@ class AllMailDetailState extends State<AllMailDetail> {
                               '$mailNum 番目のメール: $mailFolderName を ${value! ? "選択" : "解除"}');
                         },
                       ),
-                      Text(
-                        mailFolder['name'] ?? '名前不明',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            mailFolder['senderEmail'] ?? '不明なアドレス',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                mailFolder['senderName'] ?? '名前不明',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Text(
+                                ' - ',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Text(
+                                mailFolder['subject'] ?? '件名なし',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            mailFolder['body'] ?? 'テキスト無し',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
