@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:charset_converter/charset_converter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 import 'package:red_mail/mailTree.dart';
 
@@ -47,7 +48,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       if (loginStateNow != null && loginStateNow.isNotEmpty) {
         _isLoggedIn = true;
-        // ここで代入することで、親から子へ新しいメルアドが渡される
         _email = loginStateNow[2];
       } else {
         _isLoggedIn = false;
@@ -287,6 +287,22 @@ class LoginState extends State<LoginDisplay> {
     debugPrint('現在のloginCheck: $loginCheck');
   }
 
+  Future<void> fetchContacts() async {
+    if (await FlutterContacts.requestPermission()) {
+      List<Contact> contacts = await FlutterContacts.getContacts(
+          withProperties: true, withPhoto: false);
+
+      for (var contact in contacts) {
+        if (contact.emails.isNotEmpty) {
+          print('名前: ${contact.displayName}');
+          print('メール: ${contact.emails.first.address}');
+        }
+      }
+    } else {
+      print('連絡先へのアクセスが許可されませんでした');
+    }
+  }
+
   Future<void> loginConditionSave() async {
     final prefs = await SharedPreferences.getInstance();
     String? loginState = prefs.getString('loginStateNow');
@@ -508,7 +524,6 @@ class GetMailsState extends State<GetMailsDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final displayList = _folderList.isNotEmpty ? _folderList : widget.body;
     double screenWidth = MediaQuery.of(context).size.width;
     return Column(
       children: [

@@ -110,19 +110,38 @@ class AllMailDetail extends StatefulWidget {
 }
 
 class AllMailDetailState extends State<AllMailDetail> {
+  late List<Map<String, dynamic>> mailFolderList;
+  bool isInitialized = false; // 初期化フラグ
+
+  @override
+  void initState() {
+    super.initState();
+    mailFolderList =
+        widget.body.map((item) => Map<String, dynamic>.from(item)).toList();
+    isInitialized = true;
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
-    if (widget.body.isEmpty) {
+
+    if (!isInitialized || mailFolderList.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text('読み込み中...')),
+      );
+    }
+
+    if (mailFolderList.isEmpty) {
       return Scaffold(
         body: Center(child: Text('読み込み中...')),
       );
     }
     return Column(
-      children: widget.body.asMap().entries.map((entry) {
+      children: mailFolderList.asMap().entries.map((entry) {
         int mailNum = entry.key;
-        Map<String, dynamic> mailFolder = entry.value;
-        debugPrint('mailFolder ${mailFolder}');
+        Map<String, dynamic> mailFolder =
+            Map<String, dynamic>.from(entry.value);
+        debugPrint('mailFolder $mailFolder');
         final String mailFolderName = mailFolder['senderName'] ?? '名前不明';
 
         return Column(
@@ -149,17 +168,21 @@ class AllMailDetailState extends State<AllMailDetail> {
                     debugPrint('${mailFolder['senderName']} を選択しました');
                   },
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Checkbox(
-                        value: mailFolder['checked'] ?? false,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            // インデックスを使ってリストの中身を更新
-                            widget.body[mailNum]['checked'] = value ?? false;
-                          });
-                          debugPrint(
-                              '$mailNum 番目のメール: $mailFolderName を ${value! ? "選択" : "解除"}');
-                        },
+                      SizedBox(
+                        width: screenWidth * 0.1,
+                        child: Checkbox(
+                          value: mailFolderList[mailNum]['checked'] ?? false,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              mailFolderList[mailNum]['checked'] =
+                                  value ?? false;
+                            });
+                            debugPrint(
+                                '$mailNum 番目のメール: $mailFolderName を ${value! ? "選択" : "解除"}');
+                          },
+                        ),
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,11 +219,15 @@ class AllMailDetailState extends State<AllMailDetail> {
                               ),
                             ],
                           ),
-                          Text(
-                            mailFolder['body'] ?? 'テキスト無し',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 15,
+                          SizedBox(
+                            width: screenWidth * 0.8,
+                            child: Text(
+                              mailFolder['body'] ?? 'テキスト無し',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         ],
