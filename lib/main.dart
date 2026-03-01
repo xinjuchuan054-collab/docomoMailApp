@@ -9,6 +9,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:red_mail/mailTree.dart';
 
 String _email = '';
+List<Map<String, String>> contactAddress = [];
 List<Map<String, dynamic>> folderResults = [];
 
 void main() async {
@@ -190,6 +191,15 @@ class DocomoMailReceiveService {
             final fromAddress = message.from?.first;
             final senderName = fromAddress?.personalName ?? '名前なし';
             final senderEmail = fromAddress?.email ?? 'アドレス不明';
+            final DateTime? arrivalDate = message.decodeDate();
+
+            String dateString = '日時不明';
+            if (arrivalDate != null) {
+              String minuteString =
+                  arrivalDate.minute.toString().padLeft(2, '0');
+              dateString =
+                  "${arrivalDate.year}年 ${arrivalDate.month}月 ${arrivalDate.day}日 ${arrivalDate.hour}:$minuteString";
+            }
 
             String? body = message.decodeTextPlainPart() ??
                 message.decodeTextHtmlPart() ??
@@ -213,6 +223,7 @@ class DocomoMailReceiveService {
               'subject': subject,
               'senderName': senderName,
               'senderEmail': senderEmail,
+              'date': dateString,
               'body': body,
             });
           }
@@ -265,6 +276,7 @@ class LoginState extends State<LoginDisplay> {
   void initState() {
     super.initState();
     loginConditionCheck();
+    fetchContacts();
   }
 
   void loginConditionCheck() async {
@@ -287,20 +299,24 @@ class LoginState extends State<LoginDisplay> {
     debugPrint('現在のloginCheck: $loginCheck');
   }
 
-  Future<void> fetchContacts() async {
+  void fetchContacts() async {
     if (await FlutterContacts.requestPermission()) {
       List<Contact> contacts = await FlutterContacts.getContacts(
           withProperties: true, withPhoto: false);
 
       for (var contact in contacts) {
         if (contact.emails.isNotEmpty) {
-          print('名前: ${contact.displayName}');
-          print('メール: ${contact.emails.first.address}');
+          contactAddress.add({
+            'name': '${contact.displayName}',
+            'mail': '${contact.emails.first.address}',
+          });
         }
       }
     } else {
       print('連絡先へのアクセスが許可されませんでした');
     }
+
+    debugPrint('$contactAddress');
   }
 
   Future<void> loginConditionSave() async {

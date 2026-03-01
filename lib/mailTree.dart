@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:red_mail/main.dart';
 
 class MailCheckPage extends StatelessWidget {
   final String folderName;
@@ -144,6 +145,18 @@ class AllMailDetailState extends State<AllMailDetail> {
         debugPrint('mailFolder $mailFolder');
         final String mailFolderName = mailFolder['senderName'] ?? '名前不明';
 
+        String mailAddressName = mailFolder['senderEmail'];
+
+        for (int i = 0; i < contactAddress.length; i++) {
+          var contact = contactAddress[i];
+          debugPrint(('${contact['mail']})  $mailAddressName'));
+          if (('${contact['mail']}') == mailAddressName) {
+            mailAddressName = ('${contact['name']}');
+            debugPrint('一致するアドレスが見つかりました！');
+            break;
+          }
+        }
+
         return Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -187,37 +200,41 @@ class AllMailDetailState extends State<AllMailDetail> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            mailFolder['senderEmail'] ?? '不明なアドレス',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 15,
+                          SizedBox(
+                            height: screenWidth * 0.02,
+                          ),
+                          SizedBox(
+                            width: screenWidth * 0.8,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  mailAddressName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                Text(
+                                  mailFolder['date'],
+                                  style: const TextStyle(
+                                    color: Color.fromARGB(255, 114, 114, 114),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
+                                )
+                              ],
                             ),
                           ),
-                          Row(
-                            children: [
-                              Text(
-                                mailFolder['senderName'] ?? '名前不明',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              Text(
-                                ' - ',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              Text(
-                                mailFolder['subject'] ?? '件名なし',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            mailFolder['subject'] ?? '件名なし',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(
+                            height: screenWidth * 0.01,
                           ),
                           SizedBox(
                             width: screenWidth * 0.8,
@@ -226,7 +243,7 @@ class AllMailDetailState extends State<AllMailDetail> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
-                                fontSize: 15,
+                                fontSize: 14,
                               ),
                             ),
                           ),
