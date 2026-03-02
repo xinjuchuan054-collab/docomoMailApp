@@ -5,11 +5,12 @@ import 'dart:async';
 import 'package:charset_converter/charset_converter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:enough_mail/enough_mail.dart';
 
 import 'package:red_mail/mailTree.dart';
 
 String _email = '';
-List<Map<String, String>> contactAddress = [];
+List<Map<String, dynamic>> contactAddress = [];
 List<Map<String, dynamic>> folderResults = [];
 
 void main() async {
@@ -175,18 +176,27 @@ class DocomoMailReceiveService {
 
         try {
           await client.selectMailbox(mailbox);
-
-          // 1. 未読件数の取得
           final searchResult =
               await client.searchMessages(searchCriteria: 'UNSEEN');
-          final unreadCount = searchResult.matchingSequence?.length ?? 0;
-
-          List<Map<String, String>> emailsInFolder = [];
-
           final fetchResult =
               await client.fetchRecentMessages(messageCount: 50);
+          final unreadCount = searchResult.matchingSequence?.length ?? 0;
+          List<Map<String, dynamic>> emailsInFolder = [];
 
-          for (final message in fetchResult.messages) {
+          final List<int> unseenIds =
+              searchResult.matchingSequence?.toList() ?? [];
+
+          debugPrint('unseenIds $unseenIds');
+
+          for (var i = 0; i < fetchResult.messages.length; i++) {
+            final message = fetchResult.messages[i];
+
+            final int? currentId = (message as dynamic).sequenceId;
+            bool isRead = true;
+            if (currentId != null) {
+              isRead = !unseenIds.contains(currentId);
+            }
+
             String subject = message.decodeSubject() ?? '件名なし';
             final fromAddress = message.from?.first;
             final senderName = fromAddress?.personalName ?? '名前なし';
@@ -205,17 +215,20 @@ class DocomoMailReceiveService {
                 message.decodeTextHtmlPart() ??
                 '本文なし';
 
-            if (subject.contains('=?shift_jis?B?')) {
+            if (subject.contains('=?')) {
               try {
-                final regExp =
-                    RegExp(r'=\?shift_jis\?B\?(.+)\?=', caseSensitive: false);
+                final regExp = RegExp(r'=\?shift[-_]jis\?B\?(.+)\?=',
+                    caseSensitive: false);
                 final match = regExp.firstMatch(subject);
+
                 if (match != null) {
-                  final bytes = base64.decode(match.group(1)!);
+                  final base64String = match.group(1)!;
+                  final bytes = base64.decode(base64String);
+                  // "shift-jis" ではなく "cp932" を指定する
                   subject = await CharsetConverter.decode("cp932", bytes);
                 }
               } catch (e) {
-                debugPrint('デコードエラー: $e');
+                debugPrint('デコード再試行エラー: $e');
               }
             }
 
@@ -224,6 +237,7 @@ class DocomoMailReceiveService {
               'senderName': senderName,
               'senderEmail': senderEmail,
               'date': dateString,
+              'read': isRead,
               'body': body,
             });
           }
@@ -578,8 +592,8 @@ class GetMailsState extends State<GetMailsDisplay> {
                       Map<String, dynamic> folder = entry.value;
                       final String folderName = folder['name'] ?? '名前なし';
                       // 「送信済みメール」かどうかを判定
-                      final List<Map<String, String>> folderMessages =
-                          List<Map<String, String>>.from(
+                      final List<Map<String, dynamic>> folderMessages =
+                          List<Map<String, dynamic>>.from(
                               folder['messages'] ?? []);
                       final bool isSentFolder = folderName == '送信済みメール';
                       return Column(

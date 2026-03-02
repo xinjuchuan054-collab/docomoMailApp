@@ -3,7 +3,7 @@ import 'package:red_mail/main.dart';
 
 class MailCheckPage extends StatelessWidget {
   final String folderName;
-  final List<Map<String, String>> mailTexts;
+  final List<Map<String, dynamic>> mailTexts;
   final String mailadress;
 
   // コンストラクタ（窓口）
@@ -132,6 +132,8 @@ class AllMailDetailState extends State<AllMailDetail> {
       );
     }
 
+    debugPrint('mailFolder $mailFolderList');
+
     if (mailFolderList.isEmpty) {
       return Scaffold(
         body: Center(child: Text('読み込み中...')),
@@ -144,6 +146,7 @@ class AllMailDetailState extends State<AllMailDetail> {
             Map<String, dynamic>.from(entry.value);
         debugPrint('mailFolder $mailFolder');
         final String mailFolderName = mailFolder['senderName'] ?? '名前不明';
+        bool readCheck = mailFolder['read'];
 
         String mailAddressName = mailFolder['senderEmail'];
 
@@ -184,7 +187,7 @@ class AllMailDetailState extends State<AllMailDetail> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       SizedBox(
-                        width: screenWidth * 0.1,
+                        width: screenWidth * 0.08,
                         child: Checkbox(
                           value: mailFolderList[mailNum]['checked'] ?? false,
                           onChanged: (bool? value) {
@@ -195,6 +198,28 @@ class AllMailDetailState extends State<AllMailDetail> {
                             debugPrint(
                                 '$mailNum 番目のメール: $mailFolderName を ${value! ? "選択" : "解除"}');
                           },
+                        ),
+                      ),
+                      SizedBox(
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              height: screenWidth * 0.03,
+                              width: screenWidth * 0.04,
+                            ),
+                            if (readCheck == false)
+                              Container(
+                                height: screenWidth * 0.04,
+                                width: screenWidth * 0.04,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color.fromARGB(255, 33, 174, 255),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       Column(
