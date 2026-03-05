@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:red_mail/main.dart';
 
+import 'package:red_mail/mailDetail.dart';
+
 class MailCheckPage extends StatelessWidget {
   final String folderName;
   final List<Map<String, dynamic>> mailTexts;
@@ -32,7 +34,7 @@ class MailCheckPage extends StatelessWidget {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      AllMailDetail(body: mailTexts),
+                      AllMailDetail(body: mailTexts, myAdress: mailadress),
                     ],
                   ),
                 ),
@@ -104,8 +106,9 @@ class MailAdressState extends State<TreeMailAdressDisplay> {
 }
 
 class AllMailDetail extends StatefulWidget {
-  const AllMailDetail({super.key, required this.body});
+  const AllMailDetail({super.key, required this.body, required this.myAdress});
   final List<Map<String, dynamic>> body;
+  final String myAdress;
   @override
   AllMailDetailState createState() => AllMailDetailState();
 }
@@ -182,6 +185,17 @@ class AllMailDetailState extends State<AllMailDetail> {
                   ),
                   onPressed: () {
                     debugPrint('${mailFolder['senderName']} を選択しました');
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MailDetailPage(
+                          mailName: mailAddressName,
+                          mailFolderData: mailFolder,
+                          myemail: widget.myAdress,
+                        ),
+                      ),
+                    );
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

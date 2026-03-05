@@ -642,7 +642,6 @@ class GetMailsState extends State<GetMailsDisplay> {
                                     horizontal: screenWidth * 0.03),
                               ),
                               onPressed: () {
-                                debugPrint('${folder['name']} を選択しました');
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
