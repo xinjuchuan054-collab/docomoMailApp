@@ -103,6 +103,14 @@ class _MyAppState extends State<MyApp> {
             ),
           ],
         ),
+        bottomNavigationBar: SafeArea(
+          child: Container(
+            height: 65,
+            color: Colors.blue,
+            alignment: Alignment.center,
+            child: UnderBarDisplay(),
+          ),
+        ),
       ),
     );
   }
@@ -483,7 +491,7 @@ class MailAdressState extends State<MailAdressDisplay> {
         children: [
           Positioned.fill(
             child: Container(
-              color: const Color.fromARGB(255, 18, 150, 251),
+              color: Colors.blue,
               padding: EdgeInsets.only(left: screenWidth * 0.03),
               width: screenWidth,
               child: Column(
@@ -732,6 +740,41 @@ class GetMailsState extends State<GetMailsDisplay> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class UnderBarDisplay extends StatefulWidget {
+  const UnderBarDisplay({super.key});
+  @override
+  UnderBarState createState() => UnderBarState();
+}
+
+class UnderBarState extends State<UnderBarDisplay> {
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    return SizedBox(
+      height: screenWidth * 0.12,
+      width: screenWidth,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              color: const Color.fromARGB(255, 18, 150, 251),
+              padding: EdgeInsets.only(left: screenWidth * 0.03),
+              width: screenWidth,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
