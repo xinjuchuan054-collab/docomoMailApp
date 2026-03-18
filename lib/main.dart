@@ -6,6 +6,7 @@ import 'package:charset_converter/charset_converter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:enough_mail/enough_mail.dart';
+import 'package:svg_provider/svg_provider.dart';
 
 import 'package:red_mail/mailTree.dart';
 
@@ -104,11 +105,15 @@ class _MyAppState extends State<MyApp> {
           ],
         ),
         bottomNavigationBar: SafeArea(
-          child: Container(
-            height: 65,
-            color: Colors.blue,
-            alignment: Alignment.center,
-            child: UnderBarDisplay(),
+          child: Wrap(
+            children: [
+              Container(
+                width: double.infinity, // 横幅は全画面
+                color: Colors.blue,
+                alignment: Alignment.center,
+                child: UnderBarDisplay(),
+              ),
+            ],
           ),
         ),
       ),
@@ -755,22 +760,110 @@ class UnderBarState extends State<UnderBarDisplay> {
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
     return SizedBox(
-      height: screenWidth * 0.12,
+      height: screenWidth * 0.16,
       width: screenWidth,
       child: Stack(
         children: [
-          Positioned.fill(
-            child: Container(
-              color: const Color.fromARGB(255, 18, 150, 251),
-              padding: EdgeInsets.only(left: screenWidth * 0.03),
-              width: screenWidth,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  
-                ],
-              ),
+          SizedBox(
+            width: screenWidth,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: screenWidth * 0.05),
+                    SizedBox(
+                      height: screenWidth * 0.16,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image(
+                            image: SvgProvider('assets/NEWMAIL.svg'),
+                            width: screenWidth * 0.09,
+                            height: screenWidth * 0.09,
+                          ),
+                          Text(
+                            '新規作成',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    Spacer(),
+                    SizedBox(
+                      height: screenWidth * 0.16,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image(
+                            image: SvgProvider('assets/SEARCH.svg'),
+                            width: screenWidth * 0.09,
+                            height: screenWidth * 0.09,
+                          ),
+                          Text(
+                            '検索',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    Spacer(),
+                    SizedBox(
+                      height: screenWidth * 0.16,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image(
+                            image: SvgProvider('assets/UPDATE.svg'),
+                            width: screenWidth * 0.09,
+                            height: screenWidth * 0.09,
+                          ),
+                          Text(
+                            '更新',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    Spacer(),
+                    SizedBox(
+                      height: screenWidth * 0.16,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image(
+                            image: SvgProvider('assets/UPDATE.svg'),
+                            width: screenWidth * 0.09,
+                            height: screenWidth * 0.09,
+                          ),
+                          Text(
+                            'その他',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: screenWidth * 0.05),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
