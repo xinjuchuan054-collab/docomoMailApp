@@ -186,19 +186,34 @@ class DocomoMailReceiveService {
           final List<int> unseenIds =
               searchResult.matchingSequence?.toList() ?? [];
 
+          //debugPrint('DEBUG: fetchResultrawの型 = ${fetchResult.runtimeType}');
           debugPrint('unseenIds $unseenIds');
 
-          for (var i = 0; i < fetchResult.messages.length; i++) {
-            final message = fetchResult.messages[i];
-
+          for (var message in fetchResult.messages.reversed) {
+            //final message = fetchResult.messages[i];
             final int? currentId = (message as dynamic).sequenceId;
             bool isRead = true;
             if (currentId != null) {
               isRead = !unseenIds.contains(currentId);
             }
 
-            String subject = message.decodeSubject() ?? '件名なし';
+            String rawFrom = message.getHeaderValue('From') ?? "名前なし";
+            debugPrint('Raw From Header : $rawFrom');
+
+            /*String decodedName;
+            if (rawFrom.contains('?=')) {
+              int splitIndex = rawFrom.indexOf('?=') + 2;
+              String namePart = rawFrom.substring(0, splitIndex);
+
+              decodedName = MailCodec.decodeHeader(namePart) ?? namePart;
+            } else {
+              decodedName = "該当なし";
+            }
+            debugPrint('decodedName - $decodedName');*/
+
             final fromAddress = message.from?.first;
+            final toAddress = message.to?.first;
+            String subject = message.decodeSubject() ?? '件名なし';
             final senderName = fromAddress?.personalName ?? '名前なし';
             final senderEmail = fromAddress?.email ?? 'アドレス不明';
             final DateTime? arrivalDate = message.decodeDate();
@@ -236,6 +251,7 @@ class DocomoMailReceiveService {
               'subject': subject,
               'senderName': senderName,
               'senderEmail': senderEmail,
+              'getterEmail': toAddress,
               'date': dateString,
               'read': isRead,
               'body': body,

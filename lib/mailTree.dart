@@ -147,20 +147,24 @@ class AllMailDetailState extends State<AllMailDetail> {
         int mailNum = entry.key;
         Map<String, dynamic> mailFolder =
             Map<String, dynamic>.from(entry.value);
-        debugPrint('mailFolder $mailFolder');
-        final String mailFolderName = mailFolder['senderName'] ?? '名前不明';
+        debugPrint('Set-mailFolder $mailFolder');
+        final String mailFolderName = mailFolder['senderName'];
         bool readCheck = mailFolder['read'];
 
         String mailAddressName = mailFolder['senderEmail'];
 
-        for (int i = 0; i < contactAddress.length; i++) {
-          var contact = contactAddress[i];
-          debugPrint(('${contact['mail']})  $mailAddressName'));
-          if (('${contact['mail']}') == mailAddressName) {
-            mailAddressName = ('${contact['name']}');
-            debugPrint('一致するアドレスが見つかりました！');
-            break;
+        if (mailFolderName == "名前なし") {
+          for (int i = 0; i < contactAddress.length; i++) {
+            var contact = contactAddress[i];
+            debugPrint(('${contact['mail']})  $mailAddressName'));
+            if (('${contact['mail']}') == mailAddressName) {
+              mailAddressName = ('${contact['name']}');
+              debugPrint('一致するアドレスが見つかりました！');
+              break;
+            }
           }
+        } else {
+          mailAddressName = mailFolderName;
         }
 
         return Column(
@@ -185,14 +189,16 @@ class AllMailDetailState extends State<AllMailDetail> {
                   ),
                   onPressed: () {
                     debugPrint('${mailFolder['senderName']} を選択しました');
+                    debugPrint(
+                        'DEBUG: mailFolderの型 = ${mailFolder.runtimeType}');
 
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => MailDetailPage(
-                          mailName: mailAddressName,
+                          senderAdress: mailAddressName,
                           mailFolderData: mailFolder,
-                          myemail: widget.myAdress,
+                          //myemail: widget.myAdress,
                         ),
                       ),
                     );
