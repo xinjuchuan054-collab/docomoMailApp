@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:red_mail/main.dart';
+import 'dart:io';
+import 'dart:convert';
 
 import 'package:red_mail/mailDetail.dart';
 
@@ -125,6 +127,37 @@ class AllMailDetailState extends State<AllMailDetail> {
     isInitialized = true;
   }
 
+  Future<String> getCompanyNameFromWhois(String domain) async {
+    // ※.comなどの場合は whois.verisign-grs.com などサーバーを切り替える必要があります
+    const String whoisServer = 'whois.jprs.jp';
+
+    try {
+      final socket = await Socket.connect(whoisServer, 43,
+          timeout: const Duration(seconds: 8));
+
+      socket.write('$domain\r\n');
+
+      final List<int> responseBytes = [];
+      await socket.listen((data) {
+        responseBytes.addAll(data);
+      }).asFuture();
+
+      String response = utf8.decode(responseBytes, allowMalformed: true);
+
+      final regExp = RegExp(r'\[Organization\]\s*(.+)', caseSensitive: false);
+      final match = regExp.firstMatch(response);
+
+      if (match != null) {
+        return match.group(1)!.trim();
+      }
+    } catch (e) {
+      debugPrint('WHOIS通信エラー: $e');
+    }
+
+    // 取得失敗時はドメインをそのまま返す
+    return domain;
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
@@ -151,164 +184,197 @@ class AllMailDetailState extends State<AllMailDetail> {
         final String mailFolderName = mailFolder['senderName'];
         bool readCheck = mailFolder['read'];
 
-        String mailAddressName = mailFolder['senderEmail'];
+        String rawEmail = mailFolder['senderEmail'];
 
-        if (mailFolderName == "名前なし") {
-          for (int i = 0; i < contactAddress.length; i++) {
-            var contact = contactAddress[i];
-            debugPrint(('${contact['mail']})  $mailAddressName'));
-            if (('${contact['mail']}') == mailAddressName) {
-              mailAddressName = ('${contact['name']}');
-              debugPrint('一致するアドレスが見つかりました！');
-              break;
+        return FutureBuilder<String>(
+          future: () async {
+            String mailAddressName = rawEmail;
+
+            /*if (mailFolderName == "名前なし") {
+              for (int i = 0; i < contactAddress.length; i++) {
+                var contact = contactAddress[i];
+                debugPrint(('${contact['mail']})  $mailAddressName'));
+                if (('${contact['mail']}') == mailAddressName) {
+                  mailAddressName = ('${contact['name']}');
+                  debugPrint('一致するアドレスが見つかりました！');
+                  break;
+                }
+              }
+            } else {
+              mailAddressName = mailFolderName;
+            }*/
+
+            if (mailFolderName == "名前なし") {
+              bool found = false;
+              for (int i = 0; i < contactAddress.length; i++) {
+                var contact = contactAddress[i];
+                debugPrint(('${contact['mail']})  $mailAddressName'));
+                if (('${contact['mail']}') == mailAddressName) {
+                  rawEmail = ('${contact['name']}');
+                  debugPrint('一致するアドレスが見つかりました！');
+                  found = true;
+                  break;
+                }
+              }
+
+              if (!found) {
+                String domain = rawEmail.contains('@')
+                    ? rawEmail.split('@').last
+                    : rawEmail;
+                mailAddressName = await getCompanyNameFromWhois(domain);
+              }
+            } else {
+              mailAddressName = mailFolderName;
             }
-          }
-        } else {
-          mailAddressName = mailFolderName;
-        }
+            return mailAddressName;
+          }(),
+          builder: (context, snapshot) {
+            String finalName = snapshot.data ?? rawEmail;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              height: screenWidth * 0.25,
-              width: double.infinity,
-              color: const Color.fromARGB(255, 255, 255, 255),
-              child: SizedBox(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    alignment: Alignment.centerLeft,
-                    foregroundColor: const Color.fromARGB(255, 0, 0, 0),
-                    backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(0),
-                    ),
-                    // 左右に少し余白を持たせる（文字が端に寄りすぎないよう調整）
-                    padding:
-                        EdgeInsets.symmetric(horizontal: screenWidth * 0.03),
-                  ),
-                  onPressed: () {
-                    debugPrint('${mailFolder['senderName']} を選択しました');
-                    debugPrint(
-                        'DEBUG: mailFolderの型 = ${mailFolder.runtimeType}');
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  height: screenWidth * 0.25,
+                  width: double.infinity,
+                  color: const Color.fromARGB(255, 255, 255, 255),
+                  child: SizedBox(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: const Color.fromARGB(255, 0, 0, 0),
+                        backgroundColor:
+                            const Color.fromARGB(255, 255, 255, 255),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(0),
+                        ),
+                        // 左右に少し余白を持たせる（文字が端に寄りすぎないよう調整）
+                        padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.03),
+                      ),
+                      onPressed: () {
+                        debugPrint('${mailFolder['senderName']} を選択しました');
+                        debugPrint(
+                            'DEBUG: mailFolderの型 = ${mailFolder.runtimeType}');
 
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MailDetailPage(
-                          senderAdress: mailAddressName,
-                          mailFolderData: mailFolder,
-                          //myemail: widget.myAdress,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      SizedBox(
-                        width: screenWidth * 0.08,
-                        child: Checkbox(
-                          value: mailFolderList[mailNum]['checked'] ?? false,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              mailFolderList[mailNum]['checked'] =
-                                  value ?? false;
-                            });
-                            debugPrint(
-                                '$mailNum 番目のメール: $mailFolderName を ${value! ? "選択" : "解除"}');
-                          },
-                        ),
-                      ),
-                      SizedBox(
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height: screenWidth * 0.03,
-                              width: screenWidth * 0.04,
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MailDetailPage(
+                              senderAdress: rawEmail,
+                              mailFolderData: mailFolder,
+                              //myemail: widget.myAdress,
                             ),
-                            if (readCheck == false)
-                              Container(
-                                height: screenWidth * 0.04,
-                                width: screenWidth * 0.04,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color.fromARGB(255, 33, 174, 255),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           SizedBox(
-                            height: screenWidth * 0.02,
+                            width: screenWidth * 0.08,
+                            child: Checkbox(
+                              value:
+                                  mailFolderList[mailNum]['checked'] ?? false,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  mailFolderList[mailNum]['checked'] =
+                                      value ?? false;
+                                });
+                                debugPrint(
+                                    '$mailNum 番目のメール: $mailFolderName を ${value! ? "選択" : "解除"}');
+                              },
+                            ),
                           ),
                           SizedBox(
-                            width: screenWidth * 0.8,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
                               children: [
-                                Text(
-                                  mailAddressName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 15,
-                                  ),
+                                SizedBox(
+                                  height: screenWidth * 0.03,
+                                  width: screenWidth * 0.04,
                                 ),
-                                Text(
-                                  mailFolder['date'],
-                                  style: const TextStyle(
-                                    color: Color.fromARGB(255, 114, 114, 114),
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 13,
+                                if (readCheck == false)
+                                  Container(
+                                    height: screenWidth * 0.04,
+                                    width: screenWidth * 0.04,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromARGB(
+                                          255, 33, 174, 255),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
-                                )
                               ],
                             ),
                           ),
-                          Text(
-                            mailFolder['subject'] ?? '件名なし',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                            ),
-                          ),
-                          SizedBox(
-                            height: screenWidth * 0.01,
-                          ),
-                          SizedBox(
-                            width: screenWidth * 0.8,
-                            child: Text(
-                              mailFolder['body'] ?? 'テキスト無し',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: screenWidth * 0.02,
                               ),
-                            ),
+                              SizedBox(
+                                width: screenWidth * 0.8,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      rawEmail,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    Text(
+                                      mailFolder['date'],
+                                      style: const TextStyle(
+                                        color:
+                                            Color.fromARGB(255, 114, 114, 114),
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13,
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                mailFolder['subject'] ?? '件名なし',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(
+                                height: screenWidth * 0.01,
+                              ),
+                              SizedBox(
+                                width: screenWidth * 0.8,
+                                child: Text(
+                                  mailFolder['body'] ?? 'テキスト無し',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-            SizedBox(
-              height: screenWidth * 0.005,
-              width: screenWidth,
-            ),
-          ],
+                SizedBox(
+                  height: screenWidth * 0.005,
+                  width: screenWidth,
+                ),
+              ],
+            );
+          },
         );
-
-        /*return Text(
-          '$mailNum: ${mailFolder.toString()}',
-        );*/
       }).toList(),
     );
   }
